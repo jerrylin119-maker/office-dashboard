@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>科室公用展示與行事曆提醒看板</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --accent-blue: #38bdf8;
+      --accent-gold: #fbbf24;
+      --accent-green: #34d399;
+      --accent-purple: #c084fc;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", Roboto, sans-serif; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      padding: 16px 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+    
+    /* 頂部戰情列 */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 2px solid var(--accent-blue);
+      border-radius: 16px;
+      padding: 12px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15);
+      gap: 12px;
+    }
+    .title-group h1 {
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .badge-office {
+      background: #0284c7;
+      color: white;
+      font-size: 0.85rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .sync-status {
+      font-size: 0.8rem;
+      color: var(--accent-green);
+      margin-top: 4px;
+      font-weight: bold;
+    }
+
+    /* 超大日期與時間並排區塊 */
+    .datetime-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 1;
+    }
+    .date-display-large {
+      font-size: 2.3rem;
+      font-weight: 900;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+      color: var(--accent-blue);
+      text-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+      line-height: 1;
+      white-space: nowrap;
+      letter-spacing: -0.5px;
+    }
+    .clock-large {
+      font-size: 2.6rem;
+      font-weight: 900;
+      font-family: "Courier New", monospace, sans-serif;
+      color: var(--accent-gold);
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.35);
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* 右側控制按鈕群 */
+    .controls-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      justify-content: center;
+    }
+    .btn-top {
+      background: #334155;
+      color: white;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-top:hover { background: #475569; }
+
+    /* 主畫面雙欄佈局 */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    /* 卡片通用樣式 */
+    .section-card {
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 10px;
+    }
+    .title-today { color: var(--accent-blue); }
+    .title-week { color: var(--accent-purple); }
+
+    /* 行程清單 */
+    .event-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      max-height: 540px;
+    }
+    .event-item {
+      background: #0f172a;
+      border: 1.5px solid #334155;
+      border-left: 6px solid var(--accent-blue);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .event-item.upcoming {
+      border-left-color: var(--accent-gold);
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.25);
+      background: #1f253a;
+    }
+    .event-item.week-item {
+      border-left-color: var(--accent-purple);
+    }
+    .event-time {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--accent-gold);
+      min-width: 95px;
+    }
+    .week-date-badge {
+      background: #2e1065;
+      color: #e9d5ff;
+      border: 1px solid #7e22ce;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      min-width: 105px;
+      text-align: center;
+    }
+    .event-info {
+      flex: 1;
+      padding-left: 12px;
+    }
+    .event-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #ffffff;
+    }
+    .event-location {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .empty-event {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      padding: 60px 0;
+    }
+
+    /* 底部作息狀態條 */
+    .footer-routine {
+      margin-top: 14px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部戰情列 -->
+  <div class="header">
+    <div class="title-group">
+      <h1>🏛️ 科室公用展示看板 <span class="badge-office">Google 日曆同步</span></h1>
+      <div id="sync-status" class="sync-status">☁️ 正在連線 Google 日曆...</div>
+    </div>
+
+    <!-- 日期與時間並排區塊 -->
+    <div class="datetime-bar">
+      <div id="date-display" class="date-display-large">0000年00月00日 星期日</div>
+      <div id="clock" class="clock-large">00:00:00</div>
+    </div>
+
+    <div class="controls-group">
+      <button class="btn-top" onclick="testVoice()">🔊 測試親切女聲</button>
+      <button class="btn-top" onclick="fetchCalendarData()">🔄 立即更新</button>
+      <button class="btn-top" onclick="toggleFullScreen()">⛶ 全螢幕 (F11)</button>
+    </div>
+  </div>
+
+  <!-- 主畫面雙欄：左邊今日行程，右邊未來一週行程 -->
+  <div class="main-layout">
+    
+    <!-- 左欄：今日行程 -->
+    <div class="section-card">
+      <div class="section-title title-today">
+        <span>📅 今日行程 (提前 10 分鐘語音提醒)</span>
+        <span id="today-count" style="font-size: 0.9rem; color: var(--text-muted);">共 0 項</span>
+      </div>
+      <ul class="event-list" id="today-list">
+        <li class="empty-event">讀取今日行程中...</li>
+      </ul>
+    </div>
+
+    <!-- 右欄：未來一週行程 -->
+    <div class="section-card">
+      <div class="section-title title-week">
+        <span>🗓️ 未來一週行程預告 (未來 7 天)</span>
+        <span id="week-count" style="font-size: 0.9rem; color: var(--text-muted);">共 0 項</span>
+      </div>
+      <ul class="event-list" id="week-list">
+        <li class="empty-event">讀取未來行程中...</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- 底部常態作息廣播標註 -->
+  <div class="footer-routine">
+    <span>⏰ <b>每日整點與作息報時：</b> 08:00 上班 | 09~11 整點報時 | 12:00 用餐午休 | 13:30 下午上班 | 14~17 整點報時 | 17:30 下班簽退</span>
+    <span>⚡ 每 5 分鐘自動刷新行事曆</span>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbycFXOwQ_t5YNlS8eEY-2eQnWMnnCJH7KnZoZqfRtZ9I4bzhcMOILphNMsnohqc_HWjkA/exec";
+
+    let todayEvents = [];
+    let weekEvents = [];
+    let announcedTriggers = {};
+    let selectedFemaleVoice = null;
+
+    // 取得並挑選系統中最適當的親切女聲
+    function initVoices() {
+      if ('speechSynthesis' in window) {
+        const voices = window.speechSynthesis.getVoices();
+        // 優先搜尋中文且為女性的發音人
+        selectedFemaleVoice = voices.find(v => 
+          (v.lang.includes('zh') || v.lang.includes('cmn')) && 
+          (v.name.includes('Meijia') || v.name.includes('美佳') || v.name.includes('Xiaoxiao') || v.name.includes('曉曉') || v.name.includes('Female') || v.name.includes('Natural'))
+        ) || voices.find(v => v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW' || v.lang.includes('zh'));
+      }
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = initVoices;
+      initVoices();
+    }
+
+    // 溫和清脆提示音
+    function playChime() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        // 柔和雙音
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } catch (e) {}
+    }
+
+    // 親切女聲播報核心
+    function speak(text) {
+      playChime();
+      setTimeout(() => {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = 'zh-TW';
+          
+          if (selectedFemaleVoice) {
+            utter.voice = selectedFemaleVoice;
+          }
+          
+          // ✨ 親切女聲參數：音調 1.15（輕柔自然）、語速 0.92（清晰溫和）
+          utter.pitch = 1.15;
+          utter.rate = 0.92;
+          utter.volume = 1.0;
+
+          window.speechSynthesis.speak(utter);
+        }
+      }, 450);
+    }
+
+    function testVoice() {
+      speak("各位同仁好，現在為您測試親切女聲播報，Google 日曆行程與整點報時功能皆正常運作中。");
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // JSONP 接收 Google 日曆資料
+    window.handleCalendarResponse = function(data) {
+      todayEvents = data.todayEvents || [];
+      weekEvents = data.weekEvents || [];
+      document.getElementById('sync-status').innerText = `✅ Google 日曆已同步 (${new Date().toLocaleTimeString().substring(0,5)})`;
+      renderEvents();
+    };
+
+    function fetchCalendarData() {
+      if (!API_URL || API_URL.includes("YOUR_APPS_SCRIPT_URL_HERE")) {
+        document.getElementById('sync-status').innerText = "⚠️ 尚未設定 Google API 網址";
+        return;
+      }
+
+      document.getElementById('sync-status').innerText = "☁️ 讀取 Google 日曆中...";
+      const oldScript = document.getElementById('jsonp-cal-script');
+      if (oldScript) oldScript.remove();
+
+      const script = document.createElement('script');
+      script.id = 'jsonp-cal-script';
+      script.src = `${API_URL}?callback=handleCalendarResponse&_t=${Date.now()}`;
+      script.onerror = function() {
+        document.getElementById('sync-status').innerText = "❌ 連線逾時，稍後重試";
+      };
+      document.body.appendChild(script);
+    }
+
+    function renderEvents() {
+      // 1. 渲染今日行程
+      const todayListEl = document.getElementById('today-list');
+      document.getElementById('today-count').innerText = `共 ${todayEvents.length} 項`;
+      
+      if (todayEvents.length === 0) {
+        todayListEl.innerHTML = `<li class="empty-event">✨ 今日無排定特定行程</li>`;
+      } else {
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        todayListEl.innerHTML = todayEvents.map(evt => {
+          let isUpcoming = false;
+          let diff = 0;
+          if (!evt.isAllDay && evt.time && evt.time.includes(':')) {
+            const [eh, em] = evt.time.split(':').map(Number);
+            diff = (eh * 60 + em) - currentMinutes;
+            isUpcoming = diff > 0 && diff <= 15;
+          }
+
+          return `
+            <li class="event-item ${isUpcoming ? 'upcoming' : ''}">
+              <div class="event-time">⏰ ${evt.time}</div>
+              <div class="event-info">
+                <div class="event-title">${evt.title}</div>
+                <div class="event-location">📍 ${evt.location || '本科辦公室'} ${isUpcoming ? ` (即將在 ${diff} 分鐘後開始)` : ''}</div>
+              </div>
+            </li>
+          `;
+        }).join('');
+      }
+
+      // 2. 渲染未來一週行程
+      const weekListEl = document.getElementById('week-list');
+      document.getElementById('week-count').innerText = `共 ${weekEvents.length} 項`;
+
+      if (weekEvents.length === 0) {
+        weekListEl.innerHTML = `<li class="empty-event">☕ 未來一週暫無排定行程</li>`;
+      } else {
+        weekListEl.innerHTML = weekEvents.map(evt => `
+          <li class="event-item week-item">
+            <div class="week-date-badge">${evt.dateLabel}</div>
+            <div class="event-info">
+              <div class="event-title" style="font-size:1.1rem;">${evt.title}</div>
+              <div class="event-location">⏰ ${evt.time} ${evt.location ? `| 📍 ${evt.location}` : ''}</div>
+            </div>
+          </li>
+        `).join('');
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const s = now.getSeconds();
+
+      const timeStr = now.toTimeString().split(' ')[0];
+      const hmStr = timeStr.substring(0, 5);
+      const dayNames = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+      const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${dayNames[now.getDay()]}`;
+
+      document.getElementById('clock').innerText = timeStr;
+      document.getElementById('date-display').innerText = dateStr;
+
+      if (s === 0 && m % 5 === 0) fetchCalendarData();
+
+      // 整點與作息語音廣播（親切口吻）
+      if (s === 0 && !announcedTriggers[hmStr]) {
+        announcedTriggers[hmStr] = true;
+
+        if (hmStr === "08:00") {
+          speak("各位同仁早安，現在時間上午八點整，上班時間開始囉。");
+        } else if (hmStr === "12:00") {
+          speak("同仁請注意，現在時間中午十二點整，用餐與午休時間到了。");
+        } else if (hmStr === "13:30") {
+          speak("現在時間下午一點半，下午上班時間開始。");
+        } else if (hmStr === "17:30") {
+          speak("現在時間下午五點半，下班時間到了。請同仁記得完成簽退並關閉電源設備。");
+        } else if (m === 0 && [9, 10, 11, 14, 15, 16, 17].includes(h)) {
+          const hourText = h > 12 ? `下午${h-12}點` : `上午${h}點`;
+          speak(`現在時間，${hourText}整。`);
+        }
+
+        // 今日行程提前 10 分鐘親切廣播
+        const currentTotalMinutes = h * 60 + m;
+        todayEvents.forEach(evt => {
+          if (!evt.isAllDay && evt.time && evt.time.includes(':')) {
+            const [eh, em] = evt.time.split(':').map(Number);
+            if ((eh * 60 + em) - currentTotalMinutes === 10) {
+              speak(`行程提醒：十分鐘後，${evt.time}將進行：${evt.title}。地點在：${evt.location || '本科辦公室'}。`);
+            }
+          }
+        });
+
+        renderEvents();
+      }
+
+      if (hmStr === "00:00" && s === 0) {
+        announcedTriggers = {};
+        fetchCalendarData();
+      }
+    }
+
+    updateClock();
+    fetchCalendarData();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>
