@@ -64,7 +64,7 @@
       font-weight: bold;
     }
 
-    /* 超大日期與時間並排區塊 */
+    /* 日期與時間並排區塊 */
     .datetime-bar {
       display: flex;
       align-items: center;
@@ -110,6 +110,11 @@
       white-space: nowrap;
     }
     .btn-top:hover { background: #475569; }
+    .btn-config {
+      background: #0369a1;
+      border-color: #0284c7;
+    }
+    .btn-config:hover { background: #0284c7; }
 
     /* 主畫面雙欄佈局 */
     .main-layout {
@@ -219,6 +224,35 @@
       font-size: 0.9rem;
       color: var(--text-muted);
     }
+
+    /* 日曆設定彈窗樣式 */
+    dialog {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 2px solid var(--accent-blue);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      width: 90%;
+      max-width: 460px;
+      margin: auto;
+    }
+    dialog::backdrop { background: rgba(0,0,0,0.6); }
+    dialog h3 { font-size: 1.3rem; margin-bottom: 12px; color: var(--accent-blue); }
+    dialog p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4; }
+    dialog input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1.5px solid #475569;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+      outline: none;
+    }
+    dialog input:focus { border-color: var(--accent-blue); }
+    .dialog-btns { display: flex; justify-content: flex-end; gap: 10px; }
   </style>
 </head>
 <body>
@@ -226,7 +260,7 @@
   <!-- 頂部戰情列 -->
   <div class="header">
     <div class="title-group">
-      <h1>🏛️ 科室公用展示看板 <span class="badge-office">Google 日曆同步</span></h1>
+      <h1>🏛️ 科室公用展示看板 <span class="badge-office" id="cal-badge">Google 日曆同步</span></h1>
       <div id="sync-status" class="sync-status">☁️ 正在連線 Google 日曆...</div>
     </div>
 
@@ -237,7 +271,8 @@
     </div>
 
     <div class="controls-group">
-      <button class="btn-top" onclick="testVoice()">🔊 測試親切女聲</button>
+      <button class="btn-top btn-config" onclick="openConfigModal()">⚙️ 設定日曆 ID</button>
+      <button class="btn-top" onclick="testVoice()">🔊 測試真人語音</button>
       <button class="btn-top" onclick="fetchCalendarData()">🔄 立即更新</button>
       <button class="btn-top" onclick="toggleFullScreen()">⛶ 全螢幕 (F11)</button>
     </div>
@@ -276,6 +311,17 @@
     <span>⚡ 每 5 分鐘自動刷新行事曆</span>
   </div>
 
+  <!-- 日曆設定彈窗 -->
+  <dialog id="config-modal">
+    <h3>⚙️ 設定本科室 Google 日曆</h3>
+    <p>請輸入本科室的 <b>Google 日曆 ID</b>（例如：科室專用 Gmail 帳號或 Google 日曆共用 ID）。若留空則預設讀取系統主日曆：</p>
+    <input type="text" id="input-cal-id" placeholder="例如: office119@gmail.com">
+    <div class="dialog-btns">
+      <button class="btn-top" onclick="document.getElementById('config-modal').close()">取消</button>
+      <button class="btn-top btn-config" onclick="saveCalendarConfig()">儲存並連線</button>
+    </div>
+  </dialog>
+
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbycFXOwQ_t5YNlS8eEY-2eQnWMnnCJH7KnZoZqfRtZ9I4bzhcMOILphNMsnohqc_HWjkA/exec";
 
@@ -284,14 +330,22 @@
     let announcedTriggers = {};
     let selectedFemaleVoice = null;
 
-    // 取得並挑選系統中最適當的親切女聲
+    // ✨ 優先挑選 Microsoft Edge 或系統內建最高品質的「AI 真人神經網路語音」
     function initVoices() {
       if ('speechSynthesis' in window) {
         const voices = window.speechSynthesis.getVoices();
-        // 優先搜尋中文且為女性的發音人
+        if (voices.length === 0) return;
+
         selectedFemaleVoice = voices.find(v => 
-          (v.lang.includes('zh') || v.lang.includes('cmn')) && 
-          (v.name.includes('Meijia') || v.name.includes('美佳') || v.name.includes('Xiaoxiao') || v.name.includes('曉曉') || v.name.includes('Female') || v.name.includes('Natural'))
+          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') && 
+          (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Neural')) &&
+          (v.name.includes('Hsiao') || v.name.includes('曉') || v.name.includes('Female'))
+        ) || voices.find(v => 
+          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') && 
+          (v.name.includes('Natural') || v.name.includes('Online'))
+        ) || voices.find(v => 
+          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') && 
+          (v.name.includes('Google') || v.name.includes('Meijia') || v.name.includes('美佳'))
         ) || voices.find(v => v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW' || v.lang.includes('zh'));
       }
     }
@@ -300,7 +354,6 @@
       initVoices();
     }
 
-    // 溫和清脆提示音
     function playChime() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -310,9 +363,8 @@
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.type = 'sine';
-        // 柔和雙音
-        osc.frequency.setValueAtTime(523.25, now); // C5
-        osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.12);
         gain.gain.setValueAtTime(0.12, now);
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
         osc.start(now);
@@ -320,7 +372,6 @@
       } catch (e) {}
     }
 
-    // 親切女聲播報核心
     function speak(text) {
       playChime();
       setTimeout(() => {
@@ -328,23 +379,17 @@
           window.speechSynthesis.cancel();
           const utter = new SpeechSynthesisUtterance(text);
           utter.lang = 'zh-TW';
-          
-          if (selectedFemaleVoice) {
-            utter.voice = selectedFemaleVoice;
-          }
-          
-          // ✨ 親切女聲參數：音調 1.15（輕柔自然）、語速 0.92（清晰溫和）
-          utter.pitch = 1.15;
-          utter.rate = 0.92;
+          if (selectedFemaleVoice) utter.voice = selectedFemaleVoice;
+          utter.pitch = 1.0;
+          utter.rate = 0.95;
           utter.volume = 1.0;
-
           window.speechSynthesis.speak(utter);
         }
       }, 450);
     }
 
     function testVoice() {
-      speak("各位同仁好，現在為您測試親切女聲播報，Google 日曆行程與整點報時功能皆正常運作中。");
+      speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程與整點報時功能皆正常運作中。");
     }
 
     function toggleFullScreen() {
@@ -355,11 +400,29 @@
       }
     }
 
+    // 彈窗設定日曆
+    function openConfigModal() {
+      const currentCal = localStorage.getItem('office_custom_cal_id') || '';
+      document.getElementById('input-cal-id').value = currentCal;
+      document.getElementById('config-modal').showModal();
+    }
+
+    function saveCalendarConfig() {
+      const val = document.getElementById('input-cal-id').value.trim();
+      localStorage.setItem('office_custom_cal_id', val);
+      document.getElementById('config-modal').close();
+      document.getElementById('sync-status').innerText = "☁️ 日曆設定已更新，正在重新同步...";
+      fetchCalendarData();
+    }
+
     // JSONP 接收 Google 日曆資料
     window.handleCalendarResponse = function(data) {
       todayEvents = data.todayEvents || [];
       weekEvents = data.weekEvents || [];
-      document.getElementById('sync-status').innerText = `✅ Google 日曆已同步 (${new Date().toLocaleTimeString().substring(0,5)})`;
+      if (data.calName) {
+        document.getElementById('cal-badge').innerText = data.calName;
+      }
+      document.getElementById('sync-status').innerText = `✅ 日曆同步成功 (${new Date().toLocaleTimeString().substring(0,5)})`;
       renderEvents();
     };
 
@@ -369,13 +432,15 @@
         return;
       }
 
+      const targetCalId = localStorage.getItem('office_custom_cal_id') || '';
       document.getElementById('sync-status').innerText = "☁️ 讀取 Google 日曆中...";
+      
       const oldScript = document.getElementById('jsonp-cal-script');
       if (oldScript) oldScript.remove();
 
       const script = document.createElement('script');
       script.id = 'jsonp-cal-script';
-      script.src = `${API_URL}?callback=handleCalendarResponse&_t=${Date.now()}`;
+      script.src = `${API_URL}?calId=${encodeURIComponent(targetCalId)}&callback=handleCalendarResponse&_t=${Date.now()}`;
       script.onerror = function() {
         document.getElementById('sync-status').innerText = "❌ 連線逾時，稍後重試";
       };
@@ -383,7 +448,6 @@
     }
 
     function renderEvents() {
-      // 1. 渲染今日行程
       const todayListEl = document.getElementById('today-list');
       document.getElementById('today-count').innerText = `共 ${todayEvents.length} 項`;
       
@@ -414,7 +478,6 @@
         }).join('');
       }
 
-      // 2. 渲染未來一週行程
       const weekListEl = document.getElementById('week-list');
       document.getElementById('week-count').innerText = `共 ${weekEvents.length} 項`;
 
@@ -449,7 +512,6 @@
 
       if (s === 0 && m % 5 === 0) fetchCalendarData();
 
-      // 整點與作息語音廣播（親切口吻）
       if (s === 0 && !announcedTriggers[hmStr]) {
         announcedTriggers[hmStr] = true;
 
@@ -466,7 +528,6 @@
           speak(`現在時間，${hourText}整。`);
         }
 
-        // 今日行程提前 10 分鐘親切廣播
         const currentTotalMinutes = h * 60 + m;
         todayEvents.forEach(evt => {
           if (!evt.isAllDay && evt.time && evt.time.includes(':')) {
