@@ -13,6 +13,8 @@
       --accent-gold: #fbbf24;
       --accent-green: #34d399;
       --accent-purple: #c084fc;
+      --accent-red: #f87171;
+      --accent-orange: #fb923c;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -26,7 +28,7 @@
       flex-direction: column;
       user-select: none;
     }
-    
+
     /* 頂部戰情列 */
     .header {
       display: flex;
@@ -116,10 +118,10 @@
     }
     .btn-config:hover { background: #0284c7; }
 
-    /* 主畫面雙欄佈局 */
+    /* 主畫面三欄佈局 */
     .main-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 16px;
       flex: 1;
     }
@@ -145,6 +147,7 @@
     }
     .title-today { color: var(--accent-blue); }
     .title-week { color: var(--accent-purple); }
+    .title-email { color: var(--accent-orange); }
 
     /* 行程清單 */
     .event-list {
@@ -209,6 +212,58 @@
       color: var(--text-muted);
       font-size: 1.1rem;
       padding: 60px 0;
+    }
+
+    /* 郵件項目樣式 */
+    .email-item {
+      background: #0f172a;
+      border: 1.5px solid #334155;
+      border-left: 6px solid var(--accent-orange);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .email-item.urgent {
+      border-left-color: var(--accent-red);
+      box-shadow: 0 0 15px rgba(248, 113, 113, 0.25);
+      background: #1f1a1a;
+    }
+    .email-item.important {
+      border-left-color: var(--accent-orange);
+      box-shadow: 0 0 15px rgba(251, 146, 60, 0.25);
+      background: #1f1717;
+    }
+    .email-item.normal {
+      border-left-color: var(--accent-green);
+      box-shadow: 0 0 15px rgba(52, 211, 153, 0.15);
+      background: #0f1a17;
+    }
+    .email-urgency {
+      font-size: 1.5rem;
+      font-weight: 900;
+      min-width: 35px;
+      text-align: center;
+    }
+    .email-content {
+      flex: 1;
+    }
+    .email-from {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .email-subject {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #ffffff;
+    }
+    .email-time {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
     }
 
     /* 底部作息狀態條 */
@@ -278,9 +333,9 @@
     </div>
   </div>
 
-  <!-- 主畫面雙欄：左邊今日行程，右邊未來一週行程 -->
+  <!-- 主畫面三欄：左邊今日行程，中間未來一週，右邊工作郵件 -->
   <div class="main-layout">
-    
+
     <!-- 左欄：今日行程 -->
     <div class="section-card">
       <div class="section-title title-today">
@@ -292,7 +347,7 @@
       </ul>
     </div>
 
-    <!-- 右欄：未來一週行程 -->
+    <!-- 中欄：未來一週行程 -->
     <div class="section-card">
       <div class="section-title title-week">
         <span>🗓️ 未來一週行程預告 (未來 7 天)</span>
@@ -303,12 +358,23 @@
       </ul>
     </div>
 
+    <!-- 右欄：工作郵件報告 -->
+    <div class="section-card">
+      <div class="section-title title-email">
+        <span>📧 工作郵件簡報 (urgency分類)</span>
+        <span id="email-count" style="font-size: 0.9rem; color: var(--text-muted);">共 0 項</span>
+      </div>
+      <ul class="event-list" id="email-list">
+        <li class="empty-event">尚無工作郵件報告</li>
+      </ul>
+    </div>
+
   </div>
 
-  <!-- 底部常態作息廣播標註 -->
+  <!-- 底部作息狀態條 -->
   <div class="footer-routine">
     <span>⏰ <b>每日整點與作息報時：</b> 08:00 上班 | 09~11 整點報時 | 12:00 用餐午休 | 13:30 下午上班 | 14~17 整點報時 | 17:30 下班簽退</span>
-    <span>⚡ 每 5 分鐘自動刷新行事曆</span>
+    <span>⚡ 每 5 分鐘自動刷新行事曆 & 郵件報告</span>
   </div>
 
   <!-- 日曆設定彈窗 -->
@@ -327,6 +393,7 @@
 
     let todayEvents = [];
     let weekEvents = [];
+    let workEmails = [];
     let announcedTriggers = {};
     let selectedFemaleVoice = null;
 
@@ -336,15 +403,15 @@
         const voices = window.speechSynthesis.getVoices();
         if (voices.length === 0) return;
 
-        selectedFemaleVoice = voices.find(v => 
-          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') && 
+        selectedFemaleVoice = voices.find(v =>
+          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') &&
           (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Neural')) &&
           (v.name.includes('Hsiao') || v.name.includes('曉') || v.name.includes('Female'))
-        ) || voices.find(v => 
-          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') && 
+        ) || voices.find(v =>
+          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') &&
           (v.name.includes('Natural') || v.name.includes('Online'))
-        ) || voices.find(v => 
-          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') && 
+        ) || voices.find(v =>
+          (v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW') &&
           (v.name.includes('Google') || v.name.includes('Meijia') || v.name.includes('美佳'))
         ) || voices.find(v => v.lang === 'zh-TW' || v.lang === 'cmn-Hant-TW' || v.lang.includes('zh'));
       }
@@ -389,7 +456,7 @@
     }
 
     function testVoice() {
-      speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程與整點報時功能皆正常運作中。");
+      speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程與工作郵件提醒功能皆正常運作中。");
     }
 
     function toggleFullScreen() {
@@ -415,6 +482,57 @@
       fetchCalendarData();
     }
 
+    // 載入工作郵件報告
+    function loadWorkEmails() {
+      try {
+        const stored = localStorage.getItem('office_work_emails');
+        if (stored) {
+          workEmails = JSON.parse(stored);
+        } else {
+          workEmails = [];
+        }
+        renderWorkEmails();
+      } catch (e) {
+        console.error('載入工作郵件失敗:', e);
+        workEmails = [];
+      }
+    }
+
+    // 渲染工作郵件
+    function renderWorkEmails() {
+      const emailListEl = document.getElementById('email-list');
+      document.getElementById('email-count').innerText = `共 ${workEmails.length} 項`;
+
+      if (workEmails.length === 0) {
+        emailListEl.innerHTML = `<li class="empty-event">✨ 暫無工作郵件</li>`;
+        return;
+      }
+
+      emailListEl.innerHTML = workEmails.map(email => {
+        let urgencyIcon = '🟢';
+        let itemClass = 'normal';
+
+        if (email.urgency === 'urgent') {
+          urgencyIcon = '🔴';
+          itemClass = 'urgent';
+        } else if (email.urgency === 'important') {
+          urgencyIcon = '🟡';
+          itemClass = 'important';
+        }
+
+        return `
+          <li class="email-item ${itemClass}">
+            <div class="email-urgency">${urgencyIcon}</div>
+            <div class="email-content">
+              <div class="email-from">📨 ${email.from}</div>
+              <div class="email-subject">${email.subject}</div>
+              <div class="email-time">${email.time}</div>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
     // JSONP 接收 Google 日曆資料
     window.handleCalendarResponse = function(data) {
       todayEvents = data.todayEvents || [];
@@ -434,7 +552,7 @@
 
       const targetCalId = localStorage.getItem('office_custom_cal_id') || '';
       document.getElementById('sync-status').innerText = "☁️ 讀取 Google 日曆中...";
-      
+
       const oldScript = document.getElementById('jsonp-cal-script');
       if (oldScript) oldScript.remove();
 
@@ -450,7 +568,7 @@
     function renderEvents() {
       const todayListEl = document.getElementById('today-list');
       document.getElementById('today-count').innerText = `共 ${todayEvents.length} 項`;
-      
+
       if (todayEvents.length === 0) {
         todayListEl.innerHTML = `<li class="empty-event">✨ 今日無排定特定行程</li>`;
       } else {
@@ -510,7 +628,10 @@
       document.getElementById('clock').innerText = timeStr;
       document.getElementById('date-display').innerText = dateStr;
 
-      if (s === 0 && m % 5 === 0) fetchCalendarData();
+      if (s === 0 && m % 5 === 0) {
+        fetchCalendarData();
+        loadWorkEmails();
+      }
 
       if (s === 0 && !announcedTriggers[hmStr]) {
         announcedTriggers[hmStr] = true;
@@ -544,11 +665,13 @@
       if (hmStr === "00:00" && s === 0) {
         announcedTriggers = {};
         fetchCalendarData();
+        loadWorkEmails();
       }
     }
 
     updateClock();
     fetchCalendarData();
+    loadWorkEmails();
     setInterval(updateClock, 1000);
   </script>
 </body>
