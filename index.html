@@ -482,20 +482,33 @@
       fetchCalendarData();
     }
 
-    // 載入工作郵件報告
+    // 從 Google Sheet 載入工作郵件報告
+    const GOOGLE_SHEET_ID = '12mpvKEL-eB4FB6MLmyw3xJZQ07Rd1qLWcZagNdF_BRA';
+    const GOOGLE_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv&gid=0`;
+
     function loadWorkEmails() {
-      try {
-        const stored = localStorage.getItem('office_work_emails');
-        if (stored) {
-          workEmails = JSON.parse(stored);
-        } else {
+      fetch(GOOGLE_SHEET_CSV_URL)
+        .then(response => response.text())
+        .then(csv => {
+          const lines = csv.trim().split('\n');
+          if (lines.length <= 1) {
+            workEmails = [];
+            renderWorkEmails();
+            return;
+          }
+
+          workEmails = lines.slice(1).map(line => {
+            const [urgency, from, subject, time] = line.split('|').map(s => s.trim());
+            return { urgency, from, subject, time };
+          }).filter(e => e.urgency && e.from);
+
+          renderWorkEmails();
+        })
+        .catch(err => {
+          console.error('載入工作郵件失敗:', err);
           workEmails = [];
-        }
-        renderWorkEmails();
-      } catch (e) {
-        console.error('載入工作郵件失敗:', e);
-        workEmails = [];
-      }
+          renderWorkEmails();
+        });
     }
 
     // 渲染工作郵件
