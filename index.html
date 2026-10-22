@@ -265,6 +265,43 @@
       color: var(--text-muted);
       margin-top: 4px;
     }
+    .digest-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: -4px 0 10px;
+      font-size: 0.95rem;
+      font-weight: bold;
+    }
+    .digest-meta:empty { display: none; margin: 0; }
+    .digest-date { color: var(--accent-orange); }
+    .digest-stale {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #1c1917;
+      background: var(--accent-gold);
+      border-radius: 6px;
+      padding: 2px 8px;
+    }
+    .digest-note {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin: -2px 0 10px;
+      line-height: 1.45;
+    }
+    .digest-note:empty { display: none; margin: 0; }
+    .deadline-badge {
+      display: inline-block;
+      margin-top: 6px;
+      background: #7c2d12;
+      color: #ffedd5;
+      border: 1px solid #fb923c;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
 
     /* 底部作息狀態條 */
     .footer-routine {
@@ -333,7 +370,7 @@
     </div>
   </div>
 
-  <!-- 主畫面三欄：左邊今日行程，中間未來一週，右邊工作郵件 -->
+  <!-- 主畫面三欄：左邊今日行程，中間未來一週，右邊前一日郵件重點 -->
   <div class="main-layout">
 
     <!-- 左欄：今日行程 -->
@@ -358,14 +395,16 @@
       </ul>
     </div>
 
-    <!-- 右欄：工作郵件報告 -->
+    <!-- 右欄：前一日公務郵件重點 -->
     <div class="section-card">
       <div class="section-title title-email">
-        <span>📧 工作郵件簡報 (urgency分類)</span>
-        <span id="email-count" style="font-size: 0.9rem; color: var(--text-muted);">共 0 項</span>
+        <span>📧 前一日公務郵件重點</span>
+        <span id="email-count" style="font-size: 0.9rem; color: var(--text-muted);">共 0 封</span>
       </div>
+      <div id="digest-meta" class="digest-meta"></div>
+      <div id="digest-note" class="digest-note"></div>
       <ul class="event-list" id="email-list">
-        <li class="empty-event">尚無工作郵件報告</li>
+        <li class="empty-event">尚無郵件重點</li>
       </ul>
     </div>
 
@@ -374,7 +413,7 @@
   <!-- 底部作息狀態條 -->
   <div class="footer-routine">
     <span>⏰ <b>每日整點與作息報時：</b> 08:00 上班 | 09~11 整點報時 | 12:00 用餐午休 | 13:30 下午上班 | 14~17 整點報時 | 17:30 下班簽退</span>
-    <span>⚡ 每 5 分鐘自動刷新行事曆 & 郵件報告</span>
+    <span>⚡ 每 5 分鐘自動刷新行事曆 & 郵件重點</span>
   </div>
 
   <!-- 日曆設定彈窗 -->
@@ -393,7 +432,7 @@
 
     let todayEvents = [];
     let weekEvents = [];
-    let workEmails = [];
+    let mailDigest = null;
     let announcedTriggers = {};
     let selectedFemaleVoice = null;
 
@@ -456,7 +495,13 @@
     }
 
     function testVoice() {
-      speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程與工作郵件提醒功能皆正常運作中。");
+      const highlights = (mailDigest && mailDigest.highlights) || [];
+      const urgentCount = highlights.filter(item => item.level === 'urgent').length;
+      if (!mailDigest || highlights.length === 0) {
+        speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程正常運作中。目前尚無郵件重點。");
+      } else {
+        speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程正常運作中。前一日公務郵件重點，緊急項目共 " + urgentCount + " 項。");
+      }
     }
 
     function toggleFullScreen() {
@@ -482,68 +527,160 @@
       fetchCalendarData();
     }
 
-    // 從 Google Sheet 載入工作郵件報告
-    const GOOGLE_SHEET_ID = '12mpvKEL-eB4FB6MLmyw3xJZQ07Rd1qLWcZagNdF_BRA';
-    const GOOGLE_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv&gid=0`;
+    const LEVEL_RANK = { urgent: 0, important: 1, normal: 2 };
+    const LEVEL_ICON = { urgent: '🔴', important: '🟡', normal: '🟢' };
 
-    function loadWorkEmails() {
-      fetch(GOOGLE_SHEET_CSV_URL)
-        .then(response => response.text())
-        .then(csv => {
-          const lines = csv.trim().split('\n');
-          if (lines.length <= 1) {
-            workEmails = [];
-            renderWorkEmails();
-            return;
-          }
-
-          workEmails = lines.slice(1).map(line => {
-            const [urgency, from, subject, time] = line.split('|').map(s => s.trim());
-            return { urgency, from, subject, time };
-          }).filter(e => e.urgency && e.from);
-
-          renderWorkEmails();
-        })
-        .catch(err => {
-          console.error('載入工作郵件失敗:', err);
-          workEmails = [];
-          renderWorkEmails();
-        });
+    function taipeiToday() {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
     }
 
-    // 渲染工作郵件
-    function renderWorkEmails() {
-      const emailListEl = document.getElementById('email-list');
-      document.getElementById('email-count').innerText = `共 ${workEmails.length} 項`;
+    function taipeiYesterday() {
+      const [y, m, d] = taipeiToday().split('-').map(Number);
+      const utc = new Date(Date.UTC(y, m - 1, d));
+      utc.setUTCDate(utc.getUTCDate() - 1);
+      const mm = String(utc.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(utc.getUTCDate()).padStart(2, '0');
+      return `${utc.getUTCFullYear()}-${mm}-${dd}`;
+    }
 
-      if (workEmails.length === 0) {
-        emailListEl.innerHTML = `<li class="empty-event">✨ 暫無工作郵件</li>`;
+    function isDigestStale(dateStr) {
+      return typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr < taipeiYesterday();
+    }
+
+    function formatMailDate(iso) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+      if (!match) return '';
+      return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日`;
+    }
+
+    function deadlineLabel(iso) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+      if (!match) return '';
+      return `${Number(match[2])}/${Number(match[3])}`;
+    }
+
+    function normalizeHighlights(data) {
+      if (!data || !Array.isArray(data.highlights)) return [];
+      const items = [];
+      data.highlights.forEach(raw => {
+        if (!raw || typeof raw.text !== 'string') return;
+        const text = raw.text.trim();
+        if (!text) return;
+        const level = Object.prototype.hasOwnProperty.call(LEVEL_RANK, raw.level) ? raw.level : 'normal';
+        const deadline = typeof raw.deadline === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.deadline) ? raw.deadline : '';
+        const from = typeof raw.from === 'string' ? raw.from.trim() : '';
+        items.push({ text, level, from, deadline, deadlineLabel: deadlineLabel(deadline) });
+      });
+      items.sort((a, b) => {
+        const rank = LEVEL_RANK[a.level] - LEVEL_RANK[b.level];
+        if (rank !== 0) return rank;
+        return (a.deadline || '9999-99-99').localeCompare(b.deadline || '9999-99-99');
+      });
+      return items;
+    }
+
+    function showEmptyDigest() {
+      mailDigest = null;
+      document.getElementById('email-count').textContent = '共 0 封';
+      document.getElementById('digest-meta').replaceChildren();
+      document.getElementById('digest-note').textContent = '';
+      const listEl = document.getElementById('email-list');
+      listEl.replaceChildren();
+      const empty = document.createElement('li');
+      empty.className = 'empty-event';
+      empty.textContent = '尚無郵件重點';
+      listEl.appendChild(empty);
+    }
+
+    function renderMailDigest(data) {
+      const highlights = normalizeHighlights(data);
+      if (!data || highlights.length === 0) {
+        showEmptyDigest();
         return;
       }
 
-      emailListEl.innerHTML = workEmails.map(email => {
-        let urgencyIcon = '🟢';
-        let itemClass = 'normal';
+      const mailCount = Number.isFinite(Number(data.mail_count))
+        ? Math.max(0, Math.trunc(Number(data.mail_count)))
+        : highlights.length;
+      document.getElementById('email-count').textContent = `共 ${mailCount} 封`;
 
-        if (email.urgency === 'urgent') {
-          urgencyIcon = '🔴';
-          itemClass = 'urgent';
-        } else if (email.urgency === 'important') {
-          urgencyIcon = '🟡';
-          itemClass = 'important';
+      const metaEl = document.getElementById('digest-meta');
+      metaEl.replaceChildren();
+      const dateText = formatMailDate(data.date);
+      if (dateText) {
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'digest-date';
+        dateSpan.textContent = dateText;
+        metaEl.appendChild(dateSpan);
+      }
+      if (isDigestStale(data.date)) {
+        const warn = document.createElement('span');
+        warn.className = 'digest-stale';
+        warn.textContent = '重點尚未更新';
+        metaEl.appendChild(warn);
+      }
+
+      const noteEl = document.getElementById('digest-note');
+      noteEl.textContent = typeof data.note === 'string' ? data.note.trim() : '';
+
+      const listEl = document.getElementById('email-list');
+      listEl.replaceChildren();
+      highlights.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'email-item ' + item.level;
+
+        const icon = document.createElement('div');
+        icon.className = 'email-urgency';
+        icon.textContent = LEVEL_ICON[item.level];
+
+        const content = document.createElement('div');
+        content.className = 'email-content';
+
+        const subject = document.createElement('div');
+        subject.className = 'email-subject';
+        subject.textContent = item.text;
+        content.appendChild(subject);
+
+        if (item.from) {
+          const from = document.createElement('div');
+          from.className = 'email-from';
+          from.textContent = item.from;
+          content.appendChild(from);
         }
 
-        return `
-          <li class="email-item ${itemClass}">
-            <div class="email-urgency">${urgencyIcon}</div>
-            <div class="email-content">
-              <div class="email-from">📨 ${email.from}</div>
-              <div class="email-subject">${email.subject}</div>
-              <div class="email-time">${email.time}</div>
-            </div>
-          </li>
-        `;
-      }).join('');
+        if (item.deadlineLabel) {
+          const badge = document.createElement('span');
+          badge.className = 'deadline-badge';
+          badge.textContent = '⏰ 期限 ' + item.deadlineLabel;
+          content.appendChild(badge);
+        }
+
+        li.appendChild(icon);
+        li.appendChild(content);
+        listEl.appendChild(li);
+      });
+
+      mailDigest = { date: data.date, mail_count: mailCount, highlights };
+    }
+
+    function loadMailDigest() {
+      return fetch('digest.json?t=' + Date.now(), { cache: 'no-store' })
+        .then(response => {
+          if (!response.ok) throw new Error('digest http ' + response.status);
+          return response.json();
+        })
+        .then(data => {
+          renderMailDigest(data);
+        })
+        .catch(err => {
+          console.error('載入郵件重點失敗:', err);
+          showEmptyDigest();
+        });
     }
 
     // JSONP 接收 Google 日曆資料
@@ -643,7 +780,7 @@
 
       if (s === 0 && m % 5 === 0) {
         fetchCalendarData();
-        loadWorkEmails();
+        loadMailDigest();
       }
 
       if (s === 0 && !announcedTriggers[hmStr]) {
@@ -678,13 +815,13 @@
       if (hmStr === "00:00" && s === 0) {
         announcedTriggers = {};
         fetchCalendarData();
-        loadWorkEmails();
+        loadMailDigest();
       }
     }
 
     updateClock();
     fetchCalendarData();
-    loadWorkEmails();
+    loadMailDigest();
     setInterval(updateClock, 1000);
   </script>
 </body>
