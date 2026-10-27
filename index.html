@@ -683,15 +683,44 @@
         });
     }
 
-    // JSONP 接收 Google 日曆資料
+    // JSONP 接收 Google 日曆資料（主日曆 + 總隊行事曆合併）
+    const SQUAD_CAL_ID = '2u7jd3s9upb27092r4uhe69q0c@group.calendar.google.com';
+    let mainCal = { todayEvents: [], weekEvents: [] };
+    let squadCal = { todayEvents: [], weekEvents: [] };
+
+    function evtSortKey(evt, withDate) {
+      const t = (evt.isAllDay || !evt.time) ? '00:00' : evt.time;
+      let d = '';
+      if (withDate && evt.dateLabel) {
+        const [mm, dd] = String(evt.dateLabel).split('/').map(Number);
+        const nowM = new Date().getMonth() + 1;
+        const y = (mm < nowM - 6) ? 1 : 0; // 跨年
+        d = `${y}${String(mm).padStart(2,'0')}${String(dd).padStart(2,'0')}`;
+      }
+      return d + t;
+    }
+
+    function mergeCalendars() {
+      const tag = e => Object.assign({}, e, { isSquad: true });
+      todayEvents = mainCal.todayEvents.concat(squadCal.todayEvents.map(tag))
+        .sort((a, b) => evtSortKey(a, false).localeCompare(evtSortKey(b, false)));
+      weekEvents = mainCal.weekEvents.concat(squadCal.weekEvents.map(tag))
+        .sort((a, b) => evtSortKey(a, true).localeCompare(evtSortKey(b, true)));
+      renderEvents();
+    }
+
     window.handleCalendarResponse = function(data) {
-      todayEvents = data.todayEvents || [];
-      weekEvents = data.weekEvents || [];
+      mainCal = { todayEvents: data.todayEvents || [], weekEvents: data.weekEvents || [] };
       if (data.calName) {
-        document.getElementById('cal-badge').innerText = data.calName;
+        document.getElementById('cal-badge').innerText = data.calName + ' + 總隊';
       }
       document.getElementById('sync-status').innerText = `✅ 日曆同步成功 (${new Date().toLocaleTimeString().substring(0,5)})`;
-      renderEvents();
+      mergeCalendars();
+    };
+
+    window.handleSquadCalendarResponse = function(data) {
+      squadCal = { todayEvents: (data && data.todayEvents) || [], weekEvents: (data && data.weekEvents) || [] };
+      mergeCalendars();
     };
 
     function fetchCalendarData() {
@@ -713,7 +742,17 @@
         document.getElementById('sync-status').innerText = "❌ 連線逾時，稍後重試";
       };
       document.body.appendChild(script);
+
+      const oldSquad = document.getElementById('jsonp-squad-script');
+      if (oldSquad) oldSquad.remove();
+      if (targetCalId === SQUAD_CAL_ID) { squadCal = { todayEvents: [], weekEvents: [] }; return; }
+      const squadScript = document.createElement('script');
+      squadScript.id = 'jsonp-squad-script';
+      squadScript.src = `${API_URL}?calId=${encodeURIComponent(SQUAD_CAL_ID)}&callback=handleSquadCalendarResponse&_t=${Date.now()}`;
+      document.body.appendChild(squadScript);
     }
+
+    const SQUAD_TAG = '<span class="squad-tag" style="display:inline-block;background:#d9480f;color:#fff;font-size:0.75em;padding:1px 6px;border-radius:6px;margin-right:6px;vertical-align:middle;">總隊</span>';
 
     function renderEvents() {
       const todayListEl = document.getElementById('today-list');
@@ -738,7 +777,7 @@
             <li class="event-item ${isUpcoming ? 'upcoming' : ''}">
               <div class="event-time">⏰ ${evt.time}</div>
               <div class="event-info">
-                <div class="event-title">${evt.title}</div>
+                <div class="event-title">${evt.isSquad ? SQUAD_TAG : ''}${evt.title}</div>
                 <div class="event-location">📍 ${evt.location || '本科辦公室'} ${isUpcoming ? ` (即將在 ${diff} 分鐘後開始)` : ''}</div>
               </div>
             </li>
@@ -756,7 +795,7 @@
           <li class="event-item week-item">
             <div class="week-date-badge">${evt.dateLabel}</div>
             <div class="event-info">
-              <div class="event-title" style="font-size:1.1rem;">${evt.title}</div>
+              <div class="event-title" style="font-size:1.1rem;">${evt.isSquad ? SQUAD_TAG : ''}${evt.title}</div>
               <div class="event-location">⏰ ${evt.time} ${evt.location ? `| 📍 ${evt.location}` : ''}</div>
             </div>
           </li>
