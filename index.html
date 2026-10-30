@@ -13,8 +13,6 @@
       --accent-gold: #fbbf24;
       --accent-green: #34d399;
       --accent-purple: #c084fc;
-      --accent-red: #f87171;
-      --accent-orange: #fb923c;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -118,12 +116,14 @@
     }
     .btn-config:hover { background: #0284c7; }
 
-    /* 主畫面三欄佈局 */
+    /* 主畫面兩欄：今日行程與未來一週並排，窄螢幕改為上下堆疊 */
     .main-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 16px;
       flex: 1;
+      align-items: stretch;
+      min-height: 0;
     }
 
     /* 卡片通用樣式 */
@@ -147,7 +147,6 @@
     }
     .title-today { color: var(--accent-blue); }
     .title-week { color: var(--accent-purple); }
-    .title-email { color: var(--accent-orange); }
 
     /* 行程清單 */
     .event-list {
@@ -156,7 +155,8 @@
       flex-direction: column;
       gap: 10px;
       overflow-y: auto;
-      max-height: 540px;
+      flex: 1;
+      min-height: 180px;
     }
     .event-item {
       background: #0f172a;
@@ -214,95 +214,6 @@
       padding: 60px 0;
     }
 
-    /* 郵件項目樣式 */
-    .email-item {
-      background: #0f172a;
-      border: 1.5px solid #334155;
-      border-left: 6px solid var(--accent-orange);
-      border-radius: 10px;
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    .email-item.urgent {
-      border-left-color: var(--accent-red);
-      box-shadow: 0 0 15px rgba(248, 113, 113, 0.25);
-      background: #1f1a1a;
-    }
-    .email-item.important {
-      border-left-color: var(--accent-orange);
-      box-shadow: 0 0 15px rgba(251, 146, 60, 0.25);
-      background: #1f1717;
-    }
-    .email-item.normal {
-      border-left-color: var(--accent-green);
-      box-shadow: 0 0 15px rgba(52, 211, 153, 0.15);
-      background: #0f1a17;
-    }
-    .email-urgency {
-      font-size: 1.5rem;
-      font-weight: 900;
-      min-width: 35px;
-      text-align: center;
-    }
-    .email-content {
-      flex: 1;
-    }
-    .email-from {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-    .email-subject {
-      font-size: 1.1rem;
-      font-weight: bold;
-      color: #ffffff;
-    }
-    .email-time {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-    .digest-meta {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: -4px 0 10px;
-      font-size: 0.95rem;
-      font-weight: bold;
-    }
-    .digest-meta:empty { display: none; margin: 0; }
-    .digest-date { color: var(--accent-orange); }
-    .digest-stale {
-      font-size: 0.8rem;
-      font-weight: bold;
-      color: #1c1917;
-      background: var(--accent-gold);
-      border-radius: 6px;
-      padding: 2px 8px;
-    }
-    .digest-note {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin: -2px 0 10px;
-      line-height: 1.45;
-    }
-    .digest-note:empty { display: none; margin: 0; }
-    .deadline-badge {
-      display: inline-block;
-      margin-top: 6px;
-      background: #7c2d12;
-      color: #ffedd5;
-      border: 1px solid #fb923c;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: bold;
-    }
-
     /* 底部作息狀態條 */
     .footer-routine {
       margin-top: 14px;
@@ -345,6 +256,57 @@
     }
     dialog input:focus { border-color: var(--accent-blue); }
     .dialog-btns { display: flex; justify-content: flex-end; gap: 10px; }
+
+    @media (max-width: 860px) {
+      body { padding: 12px; }
+      .header {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .title-group { width: 100%; text-align: center; }
+      .title-group h1 {
+        font-size: 1.15rem;
+        white-space: normal;
+        justify-content: center;
+      }
+      .sync-status { text-align: center; }
+      .datetime-bar {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .date-display-large { font-size: 1.2rem; }
+      .clock-large { font-size: 1.7rem; }
+      .controls-group {
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: center;
+      }
+      .main-layout {
+        grid-template-columns: 1fr;
+        flex: none;
+        align-content: start;
+      }
+      .section-title {
+        font-size: 1.1rem;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .event-list {
+        flex: none;
+        max-height: 420px;
+      }
+      .event-item { flex-wrap: wrap; gap: 6px; }
+      .event-time { font-size: 1.2rem; min-width: 0; }
+      .footer-routine {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        line-height: 1.45;
+      }
+    }
   </style>
 </head>
 <body>
@@ -370,7 +332,7 @@
     </div>
   </div>
 
-  <!-- 主畫面三欄：左邊今日行程，中間未來一週，右邊前一日郵件重點 -->
+  <!-- 主畫面兩欄：左邊今日行程，右邊未來一週 -->
   <div class="main-layout">
 
     <!-- 左欄：今日行程 -->
@@ -384,7 +346,7 @@
       </ul>
     </div>
 
-    <!-- 中欄：未來一週行程 -->
+    <!-- 右欄：未來一週行程 -->
     <div class="section-card">
       <div class="section-title title-week">
         <span>🗓️ 未來一週行程預告 (未來 7 天)</span>
@@ -395,25 +357,12 @@
       </ul>
     </div>
 
-    <!-- 右欄：前一日公務郵件重點 -->
-    <div class="section-card">
-      <div class="section-title title-email">
-        <span>📧 前一日公務郵件重點</span>
-        <span id="email-count" style="font-size: 0.9rem; color: var(--text-muted);">共 0 封</span>
-      </div>
-      <div id="digest-meta" class="digest-meta"></div>
-      <div id="digest-note" class="digest-note"></div>
-      <ul class="event-list" id="email-list">
-        <li class="empty-event">尚無郵件重點</li>
-      </ul>
-    </div>
-
   </div>
 
   <!-- 底部作息狀態條 -->
   <div class="footer-routine">
     <span>⏰ <b>每日整點與作息報時：</b> 08:00 上班 | 09~11 整點報時 | 12:00 用餐午休 | 13:30 下午上班 | 14~17 整點報時 | 17:30 下班簽退</span>
-    <span>⚡ 每 5 分鐘自動刷新行事曆 & 郵件重點</span>
+    <span>⚡ 每 5 分鐘自動刷新行事曆</span>
   </div>
 
   <!-- 日曆設定彈窗 -->
@@ -432,7 +381,6 @@
 
     let todayEvents = [];
     let weekEvents = [];
-    let mailDigest = null;
     let announcedTriggers = {};
     let selectedFemaleVoice = null;
 
@@ -495,13 +443,7 @@
     }
 
     function testVoice() {
-      const highlights = (mailDigest && mailDigest.highlights) || [];
-      const urgentCount = highlights.filter(item => item.level === 'urgent').length;
-      if (!mailDigest || highlights.length === 0) {
-        speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程正常運作中。目前尚無郵件重點。");
-      } else {
-        speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程正常運作中。前一日公務郵件重點，緊急項目共 " + urgentCount + " 項。");
-      }
+      speak("各位同仁好，現在為您測試真人語音播報，Google 日曆行程正常運作中。");
     }
 
     function toggleFullScreen() {
@@ -525,162 +467,6 @@
       document.getElementById('config-modal').close();
       document.getElementById('sync-status').innerText = "☁️ 日曆設定已更新，正在重新同步...";
       fetchCalendarData();
-    }
-
-    const LEVEL_RANK = { urgent: 0, important: 1, normal: 2 };
-    const LEVEL_ICON = { urgent: '🔴', important: '🟡', normal: '🟢' };
-
-    function taipeiToday() {
-      return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Taipei',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).format(new Date());
-    }
-
-    function taipeiYesterday() {
-      const [y, m, d] = taipeiToday().split('-').map(Number);
-      const utc = new Date(Date.UTC(y, m - 1, d));
-      utc.setUTCDate(utc.getUTCDate() - 1);
-      const mm = String(utc.getUTCMonth() + 1).padStart(2, '0');
-      const dd = String(utc.getUTCDate()).padStart(2, '0');
-      return `${utc.getUTCFullYear()}-${mm}-${dd}`;
-    }
-
-    function isDigestStale(dateStr) {
-      return typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr < taipeiYesterday();
-    }
-
-    function formatMailDate(iso) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
-      if (!match) return '';
-      return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日`;
-    }
-
-    function deadlineLabel(iso) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
-      if (!match) return '';
-      return `${Number(match[2])}/${Number(match[3])}`;
-    }
-
-    function normalizeHighlights(data) {
-      if (!data || !Array.isArray(data.highlights)) return [];
-      const items = [];
-      data.highlights.forEach(raw => {
-        if (!raw || typeof raw.text !== 'string') return;
-        const text = raw.text.trim();
-        if (!text) return;
-        const level = Object.prototype.hasOwnProperty.call(LEVEL_RANK, raw.level) ? raw.level : 'normal';
-        const deadline = typeof raw.deadline === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.deadline) ? raw.deadline : '';
-        const from = typeof raw.from === 'string' ? raw.from.trim() : '';
-        items.push({ text, level, from, deadline, deadlineLabel: deadlineLabel(deadline) });
-      });
-      items.sort((a, b) => {
-        const rank = LEVEL_RANK[a.level] - LEVEL_RANK[b.level];
-        if (rank !== 0) return rank;
-        return (a.deadline || '9999-99-99').localeCompare(b.deadline || '9999-99-99');
-      });
-      return items;
-    }
-
-    function showEmptyDigest() {
-      mailDigest = null;
-      document.getElementById('email-count').textContent = '共 0 封';
-      document.getElementById('digest-meta').replaceChildren();
-      document.getElementById('digest-note').textContent = '';
-      const listEl = document.getElementById('email-list');
-      listEl.replaceChildren();
-      const empty = document.createElement('li');
-      empty.className = 'empty-event';
-      empty.textContent = '尚無郵件重點';
-      listEl.appendChild(empty);
-    }
-
-    function renderMailDigest(data) {
-      const highlights = normalizeHighlights(data);
-      if (!data || highlights.length === 0) {
-        showEmptyDigest();
-        return;
-      }
-
-      const mailCount = Number.isFinite(Number(data.mail_count))
-        ? Math.max(0, Math.trunc(Number(data.mail_count)))
-        : highlights.length;
-      document.getElementById('email-count').textContent = `共 ${mailCount} 封`;
-
-      const metaEl = document.getElementById('digest-meta');
-      metaEl.replaceChildren();
-      const dateText = formatMailDate(data.date);
-      if (dateText) {
-        const dateSpan = document.createElement('span');
-        dateSpan.className = 'digest-date';
-        dateSpan.textContent = dateText;
-        metaEl.appendChild(dateSpan);
-      }
-      if (isDigestStale(data.date)) {
-        const warn = document.createElement('span');
-        warn.className = 'digest-stale';
-        warn.textContent = '重點尚未更新';
-        metaEl.appendChild(warn);
-      }
-
-      const noteEl = document.getElementById('digest-note');
-      noteEl.textContent = typeof data.note === 'string' ? data.note.trim() : '';
-
-      const listEl = document.getElementById('email-list');
-      listEl.replaceChildren();
-      highlights.forEach(item => {
-        const li = document.createElement('li');
-        li.className = 'email-item ' + item.level;
-
-        const icon = document.createElement('div');
-        icon.className = 'email-urgency';
-        icon.textContent = LEVEL_ICON[item.level];
-
-        const content = document.createElement('div');
-        content.className = 'email-content';
-
-        const subject = document.createElement('div');
-        subject.className = 'email-subject';
-        subject.textContent = item.text;
-        content.appendChild(subject);
-
-        if (item.from) {
-          const from = document.createElement('div');
-          from.className = 'email-from';
-          from.textContent = item.from;
-          content.appendChild(from);
-        }
-
-        if (item.deadlineLabel) {
-          const badge = document.createElement('span');
-          badge.className = 'deadline-badge';
-          badge.textContent = '⏰ 期限 ' + item.deadlineLabel;
-          content.appendChild(badge);
-        }
-
-        li.appendChild(icon);
-        li.appendChild(content);
-        listEl.appendChild(li);
-      });
-
-      mailDigest = { date: data.date, mail_count: mailCount, highlights };
-    }
-
-    function loadMailDigest() {
-      return fetch('digest.json?t=' + Date.now(), { cache: 'no-store' })
-        .then(response => {
-          if (!response.ok) throw new Error('digest http ' + response.status);
-          return response.json();
-        })
-        .then(data => {
-          renderMailDigest(data);
-        })
-        .catch(err => {
-          console.error('載入郵件重點失敗:', err);
-          showEmptyDigest();
-        });
     }
 
     // JSONP 接收 Google 日曆資料（主日曆 + 總隊行事曆合併）
@@ -819,7 +605,6 @@
 
       if (s === 0 && m % 5 === 0) {
         fetchCalendarData();
-        loadMailDigest();
       }
 
       if (s === 0 && !announcedTriggers[hmStr]) {
@@ -854,13 +639,11 @@
       if (hmStr === "00:00" && s === 0) {
         announcedTriggers = {};
         fetchCalendarData();
-        loadMailDigest();
       }
     }
 
     updateClock();
     fetchCalendarData();
-    loadMailDigest();
     setInterval(updateClock, 1000);
   </script>
 </body>
